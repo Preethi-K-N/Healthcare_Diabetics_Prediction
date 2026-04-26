@@ -558,10 +558,10 @@ def main():
         )
         st.stop()
 
-    # ── Patient name ───────────────────────────────────────────
-    name = st.text_input("👤  Patient name (used in report)",
+    # ── Patient name (MANDATORY) ───────────────────────────────
+    name = st.text_input("👤  Patient name * (used in report)",
                          placeholder="e.g. Preethi K N")
-
+    
     # ── Section A: Demographics & Lifestyle ───────────────────
     st.markdown(
         '<div class="sec-label">⚕️ &nbsp;Demographics &amp; Lifestyle</div>',
@@ -570,7 +570,13 @@ def main():
     c1, c2 = st.columns(2)
     with c1:
         age  = st.slider("Age", 18, 100, 50)
-        bmi  = st.slider("BMI", 15.0, 50.0, 27.5, 0.1)
+        # Height and weight for BMI calculation
+        height_cm = st.number_input("Height (cm)", min_value=100, max_value=250, value=165, step=1)
+        weight_kg = st.number_input("Weight (kg)", min_value=30, max_value=200, value=70, step=1)
+        # Compute BMI
+        height_m = height_cm / 100.0
+        bmi = weight_kg / (height_m * height_m)
+        st.caption(f"👉 Calculated BMI: **{bmi:.1f}** (Normal: 18.5–24.9)")
     with c2:
         sex  = st.radio("Sex",            ["Male", "Female"],      horizontal=True)
         fam  = st.radio("Family History", ["No", "Yes"],           horizontal=True)
@@ -623,6 +629,11 @@ def main():
             Fill in your clinical details above<br>
             and tap <b style="color:#38bdf8;">Run Health Analysis</b>
         </div>""", unsafe_allow_html=True)
+        return
+    
+    # ── Mandatory name validation ──────────────────────────────
+    if not name or name.strip() == "":
+        st.error("❌ Please enter a patient name before running the analysis.")
         return
 
     # ── Prediction ─────────────────────────────────────────────
@@ -843,14 +854,15 @@ def main():
     ts    = datetime.datetime.now().strftime("%Y%m%d_%H%M")
 
     inputs = {
-        "Glucose (mg/dL)":     glucose,  "Systolic BP (mmHg)": bp,
-        "BMI":                  f"{bmi:.1f}",
-        "LDL (mg/dL)":         ldl,      "HDL (mg/dL)":       hdl,
-        "Cholesterol (mg/dL)": chol,     "Insulin (μIU/mL)":  insulin,
-        "Steps/day":            int(steps), "Sleep (hrs)":     sleep,
-        "Stress (0-10)":        stress,   "Activity (0-10)":   act,
-        "Smoking":              smoke,    "Hypertension":      htn,
-        "Family History":       fam,
+        "Height (cm)":       height_cm,   "Weight (kg)":       weight_kg,
+        "BMI":                f"{bmi:.1f}",
+        "Glucose (mg/dL)":   glucose,     "Systolic BP (mmHg)": bp,
+        "LDL (mg/dL)":       ldl,         "HDL (mg/dL)":       hdl,
+        "Cholesterol (mg/dL)": chol,      "Insulin (μIU/mL)":  insulin,
+        "Steps/day":          int(steps), "Sleep (hrs)":       sleep,
+        "Stress (0-10)":      stress,     "Activity (0-10)":   act,
+        "Smoking":            smoke,      "Hypertension":      htn,
+        "Family History":     fam,
     }
 
     col_e1, col_e2 = st.columns(2)
@@ -881,7 +893,8 @@ def main():
         "assessment": "AT RISK" if is_risk else "NOT AT RISK",
         "metabolic_age": met_age,
         "inputs": {
-            "age": age, "sex": sex, "bmi": bmi,
+            "height_cm": height_cm, "weight_kg": weight_kg, "bmi": round(bmi,1),
+            "age": age, "sex": sex,
             "glucose": glucose, "systolic_bp": bp,
             "ldl": ldl, "hdl": hdl, "cholesterol": chol,
             "insulin": insulin, "steps": steps,
