@@ -597,6 +597,9 @@ def main():
     else:
         bp_dia = None
 
+    # Flag to determine if risk factors are present for smarter defaults
+    default_risk = (glucose > 100 or bp_sys > 120 or bmi > 25 or smoke == "Smoker")
+
     # Total Cholesterol
     col_chol = st.columns([1, 3])
     with col_chol[0]:
@@ -605,7 +608,7 @@ def main():
         chol = st.slider("Total Cholesterol (mg/dL)", 100, 400, 210,
                          help="Optimal <200 · Borderline 200-239 · High ≥240")
     else:
-        chol = 190  # default near borderline
+        chol = 190 if not default_risk else 210
 
     # LDL
     col_ldl = st.columns([1, 3])
@@ -615,7 +618,7 @@ def main():
         ldl = st.slider("LDL (mg/dL)", 50, 250, 120,
                         help="Optimal <100 · Near optimal 100-129 · Borderline 130-159")
     else:
-        ldl = 120
+        ldl = 110 if not default_risk else 130
 
     # HDL
     col_hdl = st.columns([1, 3])
@@ -625,7 +628,7 @@ def main():
         hdl = st.slider("HDL (mg/dL)", 20, 100, 50,
                         help="Risk factor <40 · Protective >60")
     else:
-        hdl = 50
+        hdl = 50 if not default_risk else 45
 
     # Insulin
     col_ins = st.columns([1, 3])
@@ -635,7 +638,7 @@ def main():
         insulin = st.slider("Insulin (μIU/mL)", 0.0, 50.0, 10.0, 0.5,
                             help="Normal <10 · Insulin resistance >15")
     else:
-        insulin = 10.0
+        insulin = 10.0 if not default_risk else 12.0
 
     # ── Section C: Activity & Wellness (integrated toggles) ─────
     st.markdown(
@@ -650,7 +653,7 @@ def main():
         act = st.slider("Activity (0-10)", 0.0, 10.0, 5.0, 0.5,
                         help="0=sedentary, 10=very active")
     else:
-        act = 5.0
+        act = 6.0 if not default_risk else 4.0
 
     # Stress
     col_stress = st.columns([1, 3])
@@ -660,7 +663,7 @@ def main():
         stress = st.slider("Stress (0-10)", 0.0, 10.0, 5.0, 0.5,
                            help="0=no stress, 10=extremely stressed")
     else:
-        stress = 5.0
+        stress = 5.0 if not default_risk else 6.5
 
     # Sleep
     col_sleep = st.columns([1, 3])
@@ -670,7 +673,7 @@ def main():
         sleep = st.slider("Sleep (hrs)", 0.0, 12.0, 7.0, 0.5,
                           help="Recommended 7-9 hours")
     else:
-        sleep = 7.0
+        sleep = 7.0 if not default_risk else 6.5
 
     # Steps
     col_steps = st.columns([1, 3])
@@ -680,7 +683,7 @@ def main():
         steps = st.slider("Daily Steps", 0, 20_000, 6_000, 500,
                           help="WHO recommends 8,000–10,000 steps/day")
     else:
-        steps = 6000
+        steps = 7000 if not default_risk else 5000
 
     # ── RUN button ─────────────────────────────────────────────
     run = st.button("🔮  Run Health Analysis", use_container_width=True)
@@ -714,7 +717,13 @@ def main():
         scaled = scaler.transform(vec)
         prob = float(model.predict_proba(scaled)[0, 1]) * 100
 
-    # ── Metabolic age estimate (uses only known/mandatory values) ─
+    # ── Clinical override for young patients with risk factors ──
+    override_applied = False
+    if age < 30 and (glucose > 100 or bp_sys > 120):
+        prob = max(prob, 40.0)   # force minimum 40% risk
+        override_applied = True
+
+    # Metabolic age estimate (uses actual inputs)
     met = float(age)
     if bmi > 25:       met += (bmi - 25) * 0.8
     if glucose > 100:  met += (glucose - 100) * 0.2
@@ -726,7 +735,18 @@ def main():
     age_col  = "#ef4444" if age_diff > 0 else "#10b981"
     arrow    = "▲" if age_diff > 0 else "▼"
     rc       = risk_color(prob)
-    is_risk  = prob >= 50
+    # For young override, use a lower threshold (40%) for "AT RISK"
+    if override_applied:
+        is_risk = prob >= 40
+    else:
+        is_risk = prob >= 50
+
+    # If override applied and metabolic age is not sufficiently increased, adjust
+    if override_applied and met_age - age < 3:
+        met_age = age + 3
+        age_diff = met_age - age
+        arrow = "▲" if age_diff > 0 else "▼"
+        age_col = "#ef4444" if age_diff > 0 else "#10b981"
 
     # ── Result header ──────────────────────────────────────────
     st.markdown("---")
@@ -759,7 +779,15 @@ def main():
 
     st.progress(min(int(prob), 100))
 
-    # Quick metric widgets (using actual/known values)
+    # Show warning if override was applied
+    if override_applied:
+        st.warning(
+            "⚠️ **Clinical override active** – This patient is under 30 years old with elevated glucose or blood pressure. "
+            "The AI model may underestimate risk for young adults; the risk score has been adjusted upward (minimum 40%). "
+            "Please consult a physician for a complete assessment."
+        )
+
+    # Quick metric widgets
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Glucose", f"{glucose}",
               delta=f"{glucose-100:+.0f}" if glucose != 100 else None,
@@ -775,7 +803,6 @@ def main():
               delta_color="inverse")
 
     # Pill row (show diastolic if known)
-    dia_str = f"💓 Diastolic {bp_dia}" if know_dia == "Yes" and bp_dia else ""
     st.markdown(f"""
     <div class="pill-row">
       <div class="info-pill">🩸 Glucose <b>{glucose}</b></div>
@@ -961,6 +988,7 @@ def main():
         "risk_score_pct": round(prob, 2),
         "assessment": "AT RISK" if is_risk else "NOT AT RISK",
         "metabolic_age": met_age,
+        "override_applied": override_applied,
         "inputs": {
             "height_cm": height_cm, "weight_kg": weight_kg, "bmi": round(bmi,1),
             "age": age, "sex": sex,
