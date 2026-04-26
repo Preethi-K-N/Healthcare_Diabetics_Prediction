@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+env/
+
+# Models (optional – if you want to upload them, you can remove these lines)
+*.pkl
+*.joblib
+models/
+
+# Streamlit
+.streamlit/
+
+# OS junk
+.DS_Store
+Thumbs.db
