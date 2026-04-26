@@ -4,11 +4,6 @@ __pycache__/
 venv/
 env/
 
-# Models (optional – if you want to upload them, you can remove these lines)
-*.pkl
-*.joblib
-models/
-
 # Streamlit
 .streamlit/
 
