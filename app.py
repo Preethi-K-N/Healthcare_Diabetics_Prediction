@@ -47,7 +47,7 @@ st.set_page_config(
 )
 
 # ══════════════════════════════════════════════════════════════
-# 1.  GLOBAL CSS
+# 1.  GLOBAL CSS (unchanged)
 # ══════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
@@ -334,10 +334,9 @@ def risk_color(p):
 
 
 # ══════════════════════════════════════════════════════════════
-# 4.  CHARTS
+# 4.  CHARTS (unchanged)
 # ══════════════════════════════════════════════════════════════
 BG = "#111827"; DARK = "#0b1120"; GRID = "#1e3a5f"
-
 
 def _to_img(fig) -> Image.Image:
     buf = io.BytesIO()
@@ -346,7 +345,6 @@ def _to_img(fig) -> Image.Image:
     plt.close(fig)
     buf.seek(0)
     return Image.open(buf)
-
 
 def make_radar(metrics: dict) -> Image.Image:
     cats   = list(metrics.keys())
@@ -378,7 +376,6 @@ def make_radar(metrics: dict) -> Image.Image:
     fig.tight_layout(pad=0.4)
     return _to_img(fig)
 
-
 def make_drivers(factors: list) -> Image.Image:
     labels, values, colors = zip(*factors)
     fig, ax = plt.subplots(figsize=(3.6, 2.6), facecolor=BG)
@@ -399,7 +396,6 @@ def make_drivers(factors: list) -> Image.Image:
                 f"+{v}%", va="center", color="#fbbf24", fontsize=8, fontweight="700")
     fig.tight_layout(pad=0.4)
     return _to_img(fig)
-
 
 def make_gauge_arc(prob: float) -> Image.Image:
     fig, ax = plt.subplots(figsize=(3.8, 2.1), facecolor=BG)
@@ -428,7 +424,7 @@ def make_gauge_arc(prob: float) -> Image.Image:
 
 
 # ══════════════════════════════════════════════════════════════
-# 5.  EXPORTS
+# 5.  EXPORTS (unchanged)
 # ══════════════════════════════════════════════════════════════
 def export_csv(name, prob, met_age, age_diff, recs, inputs: dict) -> bytes:
     buf = io.StringIO()
@@ -452,7 +448,6 @@ def export_csv(name, prob, met_age, age_diff, recs, inputs: dict) -> bytes:
     w.writerow(["DISCLAIMER",
                 "For clinical support only. Not a substitute for professional diagnosis."])
     return buf.getvalue().encode("utf-8")
-
 
 def export_pdf(name, prob, met_age, age_diff, recs, inputs: dict) -> bytes:
     if not PDF_OK:
@@ -562,65 +557,107 @@ def main():
     name = st.text_input("👤  Patient name * (used in report)",
                          placeholder="e.g. Preethi K N")
     
-    # ── Section A: Demographics & Lifestyle ───────────────────
+    # ── Section A: Demographics & Lifestyle (mandatory fields) ─
     st.markdown(
         '<div class="sec-label">⚕️ &nbsp;Demographics &amp; Lifestyle</div>',
         unsafe_allow_html=True)
 
     c1, c2 = st.columns(2)
     with c1:
-        age  = st.slider("Age", 18, 100, 50)
-        # Height and weight for BMI calculation
-        height_cm = st.number_input("Height (cm)", min_value=100, max_value=250, value=165, step=1)
-        weight_kg = st.number_input("Weight (kg)", min_value=30, max_value=200, value=70, step=1)
+        age  = st.slider("Age *", 18, 100, 50)
+        height_cm = st.number_input("Height (cm) *", min_value=100, max_value=250, value=165, step=1)
+        weight_kg = st.number_input("Weight (kg) *", min_value=30, max_value=200, value=70, step=1)
         # Compute BMI
         height_m = height_cm / 100.0
         bmi = weight_kg / (height_m * height_m)
         st.caption(f"👉 Calculated BMI: **{bmi:.1f}** (Normal: 18.5–24.9)")
     with c2:
-        sex  = st.radio("Sex",            ["Male", "Female"],      horizontal=True)
-        fam  = st.radio("Family History", ["No", "Yes"],           horizontal=True)
+        sex  = st.radio("Sex *",            ["Male", "Female"],      horizontal=True)
+        fam  = st.radio("Family History", ["No", "Yes"],           horizontal=True, index=0)
+        htn  = st.radio("Hypertension",   ["No", "Yes"],           horizontal=True, index=0)
+        smoke = st.radio("Smoking",       ["Non-Smoker", "Smoker"], horizontal=True, index=0)
 
-    c3, c4 = st.columns(2)
-    with c3:
-        htn   = st.radio("Hypertension", ["No", "Yes"],            horizontal=True)
-    with c4:
-        smoke = st.radio("Smoking",      ["Non-Smoker", "Smoker"], horizontal=True)
-
-    # ── Section B: Clinical ────────────────────────────────────
+    # ── Section B: Clinical Measurements (with “I know” toggles) ─
     st.markdown(
         '<div class="sec-label">🧬 &nbsp;Clinical Measurements</div>',
         unsafe_allow_html=True)
 
-    c5, c6 = st.columns(2)
-    with c5:
-        glucose = st.slider("Glucose Fasting (mg/dL)", 50, 300, 115,
-                             help="Normal <100 · Pre-diabetic 100-125 · Diabetic >125")
-        bp      = st.slider("Systolic BP (mmHg)",       80, 200, 130,
-                             help="Normal <120 · Elevated 120-129 · High ≥130")
-        chol    = st.slider("Total Cholesterol (mg/dL)",100, 400, 210,
-                             help="Optimal <200 · Borderline 200-239 · High ≥240")
-    with c6:
-        ldl     = st.slider("LDL (mg/dL)",    50,  250, 135,
-                             help="Optimal <100 · High ≥160")
-        hdl     = st.slider("HDL (mg/dL)",    20,  100,  45,
-                             help="Risk factor <40 · Protective >60")
-        insulin = st.slider("Insulin (μIU/mL)", 0.0, 50.0, 15.0, 0.5)
+    # Mandatory: glucose, systolic BP
+    glucose = st.slider("Glucose Fasting (mg/dL) *", 50, 300, 115,
+                        help="Normal <100 · Pre-diabetic 100-125 · Diabetic >125")
+    bp_sys  = st.slider("Systolic BP (mmHg) *", 80, 200, 130,
+                        help="Normal <120 · Elevated 120-129 · High ≥130")
+    
+    # Optional: diastolic BP (display only, not used in prediction)
+    know_diastolic = st.checkbox("I know my diastolic BP", value=False)
+    if know_diastolic:
+        bp_dia = st.slider("Diastolic BP (mmHg)", 40, 130, 80, help="Normal <80")
+    else:
+        bp_dia = None  # will not be used in prediction
 
-    # ── Section C: Wellness ────────────────────────────────────
+    # Optional: total cholesterol, LDL, HDL, insulin
+    know_chol = st.checkbox("I know my total cholesterol", value=False)
+    if know_chol:
+        chol = st.slider("Total Cholesterol (mg/dL)", 100, 400, 210,
+                         help="Optimal <200 · Borderline 200-239 · High ≥240")
+    else:
+        chol = 190  # default near borderline
+
+    know_ldl = st.checkbox("I know my LDL cholesterol", value=False)
+    if know_ldl:
+        ldl = st.slider("LDL (mg/dL)", 50, 250, 120,
+                        help="Optimal <100 · Near optimal 100-129 · Borderline 130-159")
+    else:
+        ldl = 120  # default near optimal
+
+    know_hdl = st.checkbox("I know my HDL cholesterol", value=False)
+    if know_hdl:
+        hdl = st.slider("HDL (mg/dL)", 20, 100, 50,
+                        help="Risk factor <40 · Protective >60")
+    else:
+        hdl = 50   # default moderate
+
+    know_insulin = st.checkbox("I know my fasting insulin (μIU/mL)", value=False)
+    if know_insulin:
+        insulin = st.slider("Insulin (μIU/mL)", 0.0, 50.0, 10.0, 0.5,
+                            help="Normal <10 · Insulin resistance >15")
+    else:
+        insulin = 10.0  # default normal
+
+    # ── Section C: Wellness (with toggles) ─────────────────────
     st.markdown(
         '<div class="sec-label">🏃 &nbsp;Activity &amp; Wellness</div>',
         unsafe_allow_html=True)
 
-    c7, c8, c9 = st.columns(3)
-    with c7:  act    = st.slider("Activity (0-10)", 0.0, 10.0, 3.0, 0.5)
-    with c8:  stress = st.slider("Stress (0-10)",   0.0, 10.0, 5.0, 0.5)
-    with c9:  sleep  = st.slider("Sleep (hrs)",     0.0, 12.0, 6.5, 0.5)
+    know_act = st.checkbox("I know my physical activity level (0-10)", value=False)
+    if know_act:
+        act = st.slider("Activity (0-10)", 0.0, 10.0, 5.0, 0.5,
+                        help="0=sedentary, 10=very active")
+    else:
+        act = 5.0
 
-    steps = st.slider("Daily Steps", 0, 20_000, 5_000, 100,
-                       help="WHO recommends 8,000–10,000 steps/day")
+    know_stress = st.checkbox("I know my stress level (0-10)", value=False)
+    if know_stress:
+        stress = st.slider("Stress (0-10)", 0.0, 10.0, 5.0, 0.5,
+                           help="0=no stress, 10=extremely stressed")
+    else:
+        stress = 5.0
 
-    # ── RUN ────────────────────────────────────────────────────
+    know_sleep = st.checkbox("I know my average sleep (hours per night)", value=False)
+    if know_sleep:
+        sleep = st.slider("Sleep (hrs)", 0.0, 12.0, 7.0, 0.5,
+                          help="Recommended 7-9 hours")
+    else:
+        sleep = 7.0
+
+    know_steps = st.checkbox("I know my daily steps", value=False)
+    if know_steps:
+        steps = st.slider("Daily Steps", 0, 20_000, 6_000, 500,
+                          help="WHO recommends 8,000–10,000 steps/day")
+    else:
+        steps = 6000
+
+    # ── RUN button ─────────────────────────────────────────────
     run = st.button("🔮  Run Health Analysis", use_container_width=True)
     if not run:
         st.markdown("""
@@ -631,24 +668,32 @@ def main():
         </div>""", unsafe_allow_html=True)
         return
     
-    # ── Mandatory name validation ──────────────────────────────
-    if not name or name.strip() == "":
-        st.error("❌ Please enter a patient name before running the analysis.")
+    # ── Mandatory field validation ────────────────────────────
+    missing = []
+    if not name or name.strip() == "": missing.append("Patient name")
+    if age is None: missing.append("Age")
+    if sex is None: missing.append("Sex")
+    if height_cm is None: missing.append("Height")
+    if weight_kg is None: missing.append("Weight")
+    if glucose is None: missing.append("Glucose")
+    if bp_sys is None: missing.append("Systolic BP")
+    if missing:
+        st.error(f"❌ Please fill in all required fields: {', '.join(missing)}")
         return
 
     # ── Prediction ─────────────────────────────────────────────
     with st.spinner("Analysing health profile …"):
-        vec    = feature_vector(age, sex, bmi, fam, htn, smoke,
-                                act, stress, steps, sleep,
-                                chol, hdl, ldl, glucose, insulin, bp)
+        vec = feature_vector(age, sex, bmi, fam, htn, smoke,
+                             act, stress, steps, sleep,
+                             chol, hdl, ldl, glucose, insulin, bp_sys)
         scaled = scaler.transform(vec)
-        prob   = float(model.predict_proba(scaled)[0, 1]) * 100
+        prob = float(model.predict_proba(scaled)[0, 1]) * 100
 
-    # Metabolic age estimate
+    # ── Metabolic age estimate (uses only known/mandatory values) ─
     met = float(age)
     if bmi > 25:       met += (bmi - 25) * 0.8
     if glucose > 100:  met += (glucose - 100) * 0.2
-    if bp > 120:       met += (bp - 120) * 0.3
+    if bp_sys > 120:   met += (bp_sys - 120) * 0.3
     if prob > 50:      met += 5
     if 18.5 < bmi < 25: met -= 2
     met_age  = int(met)
@@ -689,7 +734,7 @@ def main():
 
     st.progress(min(int(prob), 100))
 
-    # Quick metric widgets
+    # Quick metric widgets (using actual/known values)
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Glucose", f"{glucose}",
               delta=f"{glucose-100:+.0f}" if glucose != 100 else None,
@@ -700,15 +745,17 @@ def main():
     m3.metric("LDL",     f"{ldl}",
               delta=f"{ldl-130:+.0f}" if ldl != 130 else None,
               delta_color="inverse")
-    m4.metric("BP",      f"{bp}",
-              delta=f"{bp-120:+.0f}"  if bp != 120 else None,
+    m4.metric("Systolic BP", f"{bp_sys}",
+              delta=f"{bp_sys-120:+.0f}" if bp_sys != 120 else None,
               delta_color="inverse")
 
-    # Pill row
+    # Pill row (show diastolic if known)
+    dia_str = f"💓 Diastolic {bp_dia}" if know_diastolic and bp_dia else ""
     st.markdown(f"""
     <div class="pill-row">
       <div class="info-pill">🩸 Glucose <b>{glucose}</b></div>
-      <div class="info-pill">💓 BP <b>{bp}</b></div>
+      <div class="info-pill">💓 Systolic <b>{bp_sys}</b></div>
+      {f'<div class="info-pill">💓 Diastolic <b>{bp_dia}</b></div>' if know_diastolic and bp_dia else ''}
       <div class="info-pill">⚖️ BMI <b>{bmi:.1f}</b></div>
       <div class="info-pill">🧪 LDL <b>{ldl}</b></div>
       <div class="info-pill">🫀 HDL <b>{hdl}</b></div>
@@ -724,7 +771,7 @@ def main():
 
     radar_vals = {
         "Metabolic": max(0, min(10, round(10 - (glucose/140)*5, 1))),
-        "Cardio":    max(0, min(10, round(10 - (bp/140)*5, 1))),
+        "Cardio":    max(0, min(10, round(10 - (bp_sys/140)*5, 1))),
         "Sleep":     max(0, min(10, round((sleep/8)*10, 1))),
         "Mental":    max(0, min(10, round(10 - stress, 1))),
         "Activity":  max(0, min(10, round(steps/1000, 1))),
@@ -733,12 +780,12 @@ def main():
     drivers = []
     if bmi     > 25:        drivers.append(("BMI",      int((bmi-25)*1.5),       "#f59e0b"))
     if glucose > 100:       drivers.append(("Glucose",  int((glucose-100)*0.5),  "#ef4444"))
-    if bp      > 120:       drivers.append(("BP",       int((bp-120)*0.5),        "#f59e0b"))
+    if bp_sys  > 120:       drivers.append(("Systolic BP", int((bp_sys-120)*0.5), "#f59e0b"))
     if smoke   == "Smoker": drivers.append(("Smoking",  25,                        "#ef4444"))
     if ldl     > 130:       drivers.append(("LDL",      int((ldl-130)*0.3),       "#f97316"))
     if hdl     < 40:        drivers.append(("Low HDL",  15,                        "#eab308"))
     if stress  > 7:         drivers.append(("Stress",   int(stress*2),             "#a78bfa"))
-    if sleep   < 7:         drivers.append(("Sleep-",   int((7-sleep)*3),          "#60a5fa"))
+    if sleep   < 7:         drivers.append(("Sleep",    int((7-sleep)*3),          "#60a5fa"))
     if not drivers:         drivers.append(("Healthy",   5,                         "#10b981"))
     drivers.sort(key=lambda x: x[1], reverse=True)
 
@@ -757,12 +804,6 @@ def main():
 
     tab_m, tab_c, tab_l = st.tabs(["Metabolic", "Cardiovascular", "Lifestyle"])
 
-    def dot(val, lo=None, hi=None):
-        if hi is not None and val > hi: return "🔴"
-        if lo is not None and val < lo: return "🔴"
-        if hi is not None and val > (hi * 0.85): return "🟡"
-        return "🟢"
-
     with tab_m:
         g_s = "🔴 Diabetic" if glucose>125 else ("🟡 Pre-diabetic" if glucose>100 else "🟢 Normal")
         b_s = "🔴 Obese"    if bmi>30       else ("🟡 Overweight"  if bmi>25     else "🟢 Normal")
@@ -774,13 +815,15 @@ def main():
         </div>""", unsafe_allow_html=True)
 
     with tab_c:
-        bp_s  = "🔴 High"       if bp>140   else ("🟡 Elevated"   if bp>120   else "🟢 Normal")
+        bp_s  = "🔴 High"       if bp_sys>140   else ("🟡 Elevated"   if bp_sys>120   else "🟢 Normal")
         ldl_s = "🔴 High"       if ldl>160  else ("🟡 Borderline" if ldl>130  else "🟢 Normal")
         hdl_s = "🔴 Low (risk)" if hdl<40   else ("🟡 Moderate"   if hdl<60   else "🟢 Good")
         c_s   = "🔴 High"       if chol>240 else ("🟡 Borderline" if chol>200 else "🟢 Optimal")
+        dia_line = f"<p><b>Diastolic BP:</b> {bp_dia} mmHg</p>" if know_diastolic and bp_dia else ""
         st.markdown(f"""
         <div class="detail-box">
-          <p><b>Systolic BP:</b> {bp} mmHg &nbsp;{bp_s}</p>
+          <p><b>Systolic BP:</b> {bp_sys} mmHg &nbsp;{bp_s}</p>
+          {dia_line}
           <p><b>LDL:</b> {ldl} mg/dL &nbsp;{ldl_s}</p>
           <p><b>HDL:</b> {hdl} mg/dL &nbsp;{hdl_s}</p>
           <p><b>Cholesterol:</b> {chol} mg/dL &nbsp;{c_s}</p>
@@ -798,7 +841,7 @@ def main():
           <p><b>Smoking:</b> {smoke} &nbsp;{'🔴' if smoke=='Smoker' else '🟢'}</p>
         </div>""", unsafe_allow_html=True)
 
-    # ── Recommendations ────────────────────────────────────────
+    # ── Recommendations (using actual values) ─────────────────────
     st.markdown(
         '<div class="sec-label">📋 &nbsp;Personalised Recommendations</div>',
         unsafe_allow_html=True)
@@ -813,9 +856,9 @@ def main():
     elif bmi > 25:
         recs.append(("⚠️","Weight",
             f"BMI {bmi:.1f} (Overweight) — Reduce refined carbs. Add 30 min brisk walking daily."))
-    if bp > 130:
+    if bp_sys > 130:
         recs.append(("💓","Blood Pressure",
-            f"{int(bp)} mmHg — Try the DASH diet (low sodium, high K⁺). Limit caffeine & alcohol."))
+            f"{int(bp_sys)} mmHg systolic — Try the DASH diet (low sodium, high K⁺). Limit caffeine & alcohol."))
     if ldl > 130:
         recs.append(("🍔","LDL Cholesterol",
             f"{int(ldl)} mg/dL — Increase soluble fibre (oats, beans). Reduce saturated fats."))
@@ -856,7 +899,8 @@ def main():
     inputs = {
         "Height (cm)":       height_cm,   "Weight (kg)":       weight_kg,
         "BMI":                f"{bmi:.1f}",
-        "Glucose (mg/dL)":   glucose,     "Systolic BP (mmHg)": bp,
+        "Glucose (mg/dL)":   glucose,     "Systolic BP (mmHg)": bp_sys,
+        "Diastolic BP (mmHg)": bp_dia if know_diastolic else "Not provided",
         "LDL (mg/dL)":       ldl,         "HDL (mg/dL)":       hdl,
         "Cholesterol (mg/dL)": chol,      "Insulin (μIU/mL)":  insulin,
         "Steps/day":          int(steps), "Sleep (hrs)":       sleep,
@@ -895,7 +939,8 @@ def main():
         "inputs": {
             "height_cm": height_cm, "weight_kg": weight_kg, "bmi": round(bmi,1),
             "age": age, "sex": sex,
-            "glucose": glucose, "systolic_bp": bp,
+            "glucose": glucose, "systolic_bp": bp_sys,
+            "diastolic_bp": bp_dia if know_diastolic else None,
             "ldl": ldl, "hdl": hdl, "cholesterol": chol,
             "insulin": insulin, "steps": steps,
             "sleep": sleep, "stress": stress,
