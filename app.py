@@ -577,7 +577,7 @@ def main():
         htn  = st.radio("Hypertension",   ["No", "Yes"],           horizontal=True, index=0)
         smoke = st.radio("Smoking",       ["Non-Smoker", "Smoker"], horizontal=True, index=0)
 
-    # ── Section B: Clinical Measurements (with “I know” toggles) ─
+    # ── Section B: Clinical Measurements (integrated "Do you know" toggles) ─
     st.markdown(
         '<div class="sec-label">🧬 &nbsp;Clinical Measurements</div>',
         unsafe_allow_html=True)
@@ -588,70 +588,95 @@ def main():
     bp_sys  = st.slider("Systolic BP (mmHg) *", 80, 200, 130,
                         help="Normal <120 · Elevated 120-129 · High ≥130")
     
-    # Optional: diastolic BP (display only, not used in prediction)
-    know_diastolic = st.checkbox("I know my diastolic BP", value=False)
-    if know_diastolic:
+    # Diastolic BP (optional, not used in prediction)
+    col_dia = st.columns([1, 3])
+    with col_dia[0]:
+        know_dia = st.radio("Do you know your diastolic BP?", ["No", "Yes"], index=0, key="dia_know", horizontal=True)
+    if know_dia == "Yes":
         bp_dia = st.slider("Diastolic BP (mmHg)", 40, 130, 80, help="Normal <80")
     else:
-        bp_dia = None  # will not be used in prediction
+        bp_dia = None
 
-    # Optional: total cholesterol, LDL, HDL, insulin
-    know_chol = st.checkbox("I know my total cholesterol", value=False)
-    if know_chol:
+    # Total Cholesterol
+    col_chol = st.columns([1, 3])
+    with col_chol[0]:
+        know_chol = st.radio("Do you know total cholesterol?", ["No", "Yes"], index=0, key="chol_know", horizontal=True)
+    if know_chol == "Yes":
         chol = st.slider("Total Cholesterol (mg/dL)", 100, 400, 210,
                          help="Optimal <200 · Borderline 200-239 · High ≥240")
     else:
         chol = 190  # default near borderline
 
-    know_ldl = st.checkbox("I know my LDL cholesterol", value=False)
-    if know_ldl:
+    # LDL
+    col_ldl = st.columns([1, 3])
+    with col_ldl[0]:
+        know_ldl = st.radio("Do you know LDL cholesterol?", ["No", "Yes"], index=0, key="ldl_know", horizontal=True)
+    if know_ldl == "Yes":
         ldl = st.slider("LDL (mg/dL)", 50, 250, 120,
                         help="Optimal <100 · Near optimal 100-129 · Borderline 130-159")
     else:
-        ldl = 120  # default near optimal
+        ldl = 120
 
-    know_hdl = st.checkbox("I know my HDL cholesterol", value=False)
-    if know_hdl:
+    # HDL
+    col_hdl = st.columns([1, 3])
+    with col_hdl[0]:
+        know_hdl = st.radio("Do you know HDL cholesterol?", ["No", "Yes"], index=0, key="hdl_know", horizontal=True)
+    if know_hdl == "Yes":
         hdl = st.slider("HDL (mg/dL)", 20, 100, 50,
                         help="Risk factor <40 · Protective >60")
     else:
-        hdl = 50   # default moderate
+        hdl = 50
 
-    know_insulin = st.checkbox("I know my fasting insulin (μIU/mL)", value=False)
-    if know_insulin:
+    # Insulin
+    col_ins = st.columns([1, 3])
+    with col_ins[0]:
+        know_ins = st.radio("Do you know fasting insulin?", ["No", "Yes"], index=0, key="ins_know", horizontal=True)
+    if know_ins == "Yes":
         insulin = st.slider("Insulin (μIU/mL)", 0.0, 50.0, 10.0, 0.5,
                             help="Normal <10 · Insulin resistance >15")
     else:
-        insulin = 10.0  # default normal
+        insulin = 10.0
 
-    # ── Section C: Wellness (with toggles) ─────────────────────
+    # ── Section C: Activity & Wellness (integrated toggles) ─────
     st.markdown(
         '<div class="sec-label">🏃 &nbsp;Activity &amp; Wellness</div>',
         unsafe_allow_html=True)
 
-    know_act = st.checkbox("I know my physical activity level (0-10)", value=False)
-    if know_act:
+    # Physical activity
+    col_act = st.columns([1, 3])
+    with col_act[0]:
+        know_act = st.radio("Do you know your physical activity level (0-10)?", ["No", "Yes"], index=0, key="act_know", horizontal=True)
+    if know_act == "Yes":
         act = st.slider("Activity (0-10)", 0.0, 10.0, 5.0, 0.5,
                         help="0=sedentary, 10=very active")
     else:
         act = 5.0
 
-    know_stress = st.checkbox("I know my stress level (0-10)", value=False)
-    if know_stress:
+    # Stress
+    col_stress = st.columns([1, 3])
+    with col_stress[0]:
+        know_stress = st.radio("Do you know your stress level (0-10)?", ["No", "Yes"], index=0, key="stress_know", horizontal=True)
+    if know_stress == "Yes":
         stress = st.slider("Stress (0-10)", 0.0, 10.0, 5.0, 0.5,
                            help="0=no stress, 10=extremely stressed")
     else:
         stress = 5.0
 
-    know_sleep = st.checkbox("I know my average sleep (hours per night)", value=False)
-    if know_sleep:
+    # Sleep
+    col_sleep = st.columns([1, 3])
+    with col_sleep[0]:
+        know_sleep = st.radio("Do you know your average sleep (hours per night)?", ["No", "Yes"], index=0, key="sleep_know", horizontal=True)
+    if know_sleep == "Yes":
         sleep = st.slider("Sleep (hrs)", 0.0, 12.0, 7.0, 0.5,
                           help="Recommended 7-9 hours")
     else:
         sleep = 7.0
 
-    know_steps = st.checkbox("I know my daily steps", value=False)
-    if know_steps:
+    # Steps
+    col_steps = st.columns([1, 3])
+    with col_steps[0]:
+        know_steps = st.radio("Do you know your daily steps?", ["No", "Yes"], index=0, key="steps_know", horizontal=True)
+    if know_steps == "Yes":
         steps = st.slider("Daily Steps", 0, 20_000, 6_000, 500,
                           help="WHO recommends 8,000–10,000 steps/day")
     else:
@@ -750,12 +775,12 @@ def main():
               delta_color="inverse")
 
     # Pill row (show diastolic if known)
-    dia_str = f"💓 Diastolic {bp_dia}" if know_diastolic and bp_dia else ""
+    dia_str = f"💓 Diastolic {bp_dia}" if know_dia == "Yes" and bp_dia else ""
     st.markdown(f"""
     <div class="pill-row">
       <div class="info-pill">🩸 Glucose <b>{glucose}</b></div>
       <div class="info-pill">💓 Systolic <b>{bp_sys}</b></div>
-      {f'<div class="info-pill">💓 Diastolic <b>{bp_dia}</b></div>' if know_diastolic and bp_dia else ''}
+      {f'<div class="info-pill">💓 Diastolic <b>{bp_dia}</b></div>' if know_dia == "Yes" and bp_dia else ''}
       <div class="info-pill">⚖️ BMI <b>{bmi:.1f}</b></div>
       <div class="info-pill">🧪 LDL <b>{ldl}</b></div>
       <div class="info-pill">🫀 HDL <b>{hdl}</b></div>
@@ -819,7 +844,7 @@ def main():
         ldl_s = "🔴 High"       if ldl>160  else ("🟡 Borderline" if ldl>130  else "🟢 Normal")
         hdl_s = "🔴 Low (risk)" if hdl<40   else ("🟡 Moderate"   if hdl<60   else "🟢 Good")
         c_s   = "🔴 High"       if chol>240 else ("🟡 Borderline" if chol>200 else "🟢 Optimal")
-        dia_line = f"<p><b>Diastolic BP:</b> {bp_dia} mmHg</p>" if know_diastolic and bp_dia else ""
+        dia_line = f"<p><b>Diastolic BP:</b> {bp_dia} mmHg</p>" if know_dia == "Yes" and bp_dia else ""
         st.markdown(f"""
         <div class="detail-box">
           <p><b>Systolic BP:</b> {bp_sys} mmHg &nbsp;{bp_s}</p>
@@ -900,7 +925,7 @@ def main():
         "Height (cm)":       height_cm,   "Weight (kg)":       weight_kg,
         "BMI":                f"{bmi:.1f}",
         "Glucose (mg/dL)":   glucose,     "Systolic BP (mmHg)": bp_sys,
-        "Diastolic BP (mmHg)": bp_dia if know_diastolic else "Not provided",
+        "Diastolic BP (mmHg)": bp_dia if know_dia == "Yes" else "Not provided",
         "LDL (mg/dL)":       ldl,         "HDL (mg/dL)":       hdl,
         "Cholesterol (mg/dL)": chol,      "Insulin (μIU/mL)":  insulin,
         "Steps/day":          int(steps), "Sleep (hrs)":       sleep,
@@ -940,7 +965,7 @@ def main():
             "height_cm": height_cm, "weight_kg": weight_kg, "bmi": round(bmi,1),
             "age": age, "sex": sex,
             "glucose": glucose, "systolic_bp": bp_sys,
-            "diastolic_bp": bp_dia if know_diastolic else None,
+            "diastolic_bp": bp_dia if know_dia == "Yes" else None,
             "ldl": ldl, "hdl": hdl, "cholesterol": chol,
             "insulin": insulin, "steps": steps,
             "sleep": sleep, "stress": stress,
