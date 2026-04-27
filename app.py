@@ -577,25 +577,26 @@ def main():
         htn  = st.radio("Hypertension",   ["No", "Yes"],           horizontal=True, index=0)
         smoke = st.radio("Smoking",       ["Non-Smoker", "Smoker"], horizontal=True, index=0)
 
-    # ── Section B: Clinical Measurements (integrated "Do you know" toggles) ─
+    # ── Section B: Clinical Measurements ────────────────────────
     st.markdown(
         '<div class="sec-label">🧬 &nbsp;Clinical Measurements</div>',
         unsafe_allow_html=True)
 
-    # Mandatory: glucose, systolic BP
-    glucose = st.slider("Glucose Fasting (mg/dL) *", 50, 300, 115,
-                        help="Normal <100 · Pre-diabetic 100-125 · Diabetic >125")
-    bp_sys  = st.slider("Systolic BP (mmHg) *", 80, 200, 130,
-                        help="Normal <120 · Elevated 120-129 · High ≥130")
-    
-    # Diastolic BP (optional, not used in prediction)
-    col_dia = st.columns([1, 3])
-    with col_dia[0]:
-        know_dia = st.radio("Do you know your diastolic BP?", ["No", "Yes"], index=0, key="dia_know", horizontal=True)
-    if know_dia == "Yes":
-        bp_dia = st.slider("Diastolic BP (mmHg)", 40, 130, 80, help="Normal <80")
-    else:
-        bp_dia = None
+    # Mandatory: Fasting Glucose & Systolic BP
+    col_gluc, col_bp_sys = st.columns(2)
+    with col_gluc:
+        glucose = st.slider("Fasting Glucose (mg/dL) *", 50, 300, 115,
+                            help="Normal <100 · Pre-diabetic 100-125 · Diabetic >125")
+    with col_bp_sys:
+        bp_sys = st.slider("Systolic BP (mmHg) *", 80, 200, 130,
+                           help="Normal <120 · Elevated 120-129 · High ≥130")
+
+    # Diastolic BP – optional, placed directly next to systolic (same row)
+    col_bp_dia = st.columns([1, 1])
+    with col_bp_dia[0]:
+        bp_dia = st.slider("Diastolic BP (mmHg) (optional)", 40, 130, 80,
+                           help="Normal <80 · Not used in prediction, for reference only")
+    # (No "Do you know?" toggle – it's always present but optional)
 
     # Flag to determine if risk factors are present for smarter defaults
     default_risk = (glucose > 100 or bp_sys > 120 or bmi > 25 or smoke == "Smoker")
@@ -630,12 +631,12 @@ def main():
     else:
         hdl = 50 if not default_risk else 45
 
-    # Insulin
+    # Fasting Insulin (corrected label)
     col_ins = st.columns([1, 3])
     with col_ins[0]:
         know_ins = st.radio("Do you know fasting insulin?", ["No", "Yes"], index=0, key="ins_know", horizontal=True)
     if know_ins == "Yes":
-        insulin = st.slider("Insulin (μIU/mL)", 0.0, 50.0, 10.0, 0.5,
+        insulin = st.slider("Fasting Insulin (μIU/mL)", 0.0, 50.0, 10.0, 0.5,
                             help="Normal <10 · Insulin resistance >15")
     else:
         insulin = 10.0 if not default_risk else 12.0
@@ -703,7 +704,7 @@ def main():
     if sex is None: missing.append("Sex")
     if height_cm is None: missing.append("Height")
     if weight_kg is None: missing.append("Weight")
-    if glucose is None: missing.append("Glucose")
+    if glucose is None: missing.append("Fasting Glucose")
     if bp_sys is None: missing.append("Systolic BP")
     if missing:
         st.error(f"❌ Please fill in all required fields: {', '.join(missing)}")
@@ -711,6 +712,7 @@ def main():
 
     # ── Prediction ─────────────────────────────────────────────
     with st.spinner("Analysing health profile …"):
+        # Only systolic BP is used in prediction; diastolic is for display only
         vec = feature_vector(age, sex, bmi, fam, htn, smoke,
                              act, stress, steps, sleep,
                              chol, hdl, ldl, glucose, insulin, bp_sys)
@@ -787,8 +789,8 @@ def main():
             "Please consult a physician for a complete assessment."
         )
 
-    # Quick metric widgets
-    m1, m2, m3, m4 = st.columns(4)
+    # Quick metric widgets (including diastolic for reference)
+    m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Glucose", f"{glucose}",
               delta=f"{glucose-100:+.0f}" if glucose != 100 else None,
               delta_color="inverse")
@@ -798,16 +800,19 @@ def main():
     m3.metric("LDL",     f"{ldl}",
               delta=f"{ldl-130:+.0f}" if ldl != 130 else None,
               delta_color="inverse")
-    m4.metric("Systolic BP", f"{bp_sys}",
+    m4.metric("Systolic", f"{bp_sys}",
               delta=f"{bp_sys-120:+.0f}" if bp_sys != 120 else None,
               delta_color="inverse")
+    m5.metric("Diastolic", f"{bp_dia}",
+              delta=f"{bp_dia-80:+.0f}" if bp_dia != 80 else None,
+              delta_color="inverse")
 
-    # Pill row (show diastolic if known)
+    # Pill row (show diastolic as well)
     st.markdown(f"""
     <div class="pill-row">
       <div class="info-pill">🩸 Glucose <b>{glucose}</b></div>
       <div class="info-pill">💓 Systolic <b>{bp_sys}</b></div>
-      {f'<div class="info-pill">💓 Diastolic <b>{bp_dia}</b></div>' if know_dia == "Yes" and bp_dia else ''}
+      <div class="info-pill">💓 Diastolic <b>{bp_dia}</b></div>
       <div class="info-pill">⚖️ BMI <b>{bmi:.1f}</b></div>
       <div class="info-pill">🧪 LDL <b>{ldl}</b></div>
       <div class="info-pill">🫀 HDL <b>{hdl}</b></div>
@@ -861,24 +866,24 @@ def main():
         b_s = "🔴 Obese"    if bmi>30       else ("🟡 Overweight"  if bmi>25     else "🟢 Normal")
         st.markdown(f"""
         <div class="detail-box">
-          <p><b>Glucose:</b> {glucose} mg/dL &nbsp;{g_s}</p>
+          <p><b>Fasting Glucose:</b> {glucose} mg/dL &nbsp;{g_s}</p>
           <p><b>BMI:</b> {bmi:.1f} &nbsp;{b_s}</p>
-          <p><b>Insulin:</b> {insulin} μIU/mL</p>
+          <p><b>Fasting Insulin:</b> {insulin} μIU/mL</p>
         </div>""", unsafe_allow_html=True)
 
     with tab_c:
         bp_s  = "🔴 High"       if bp_sys>140   else ("🟡 Elevated"   if bp_sys>120   else "🟢 Normal")
+        bp_d_status = "🔴 High" if bp_dia>80    else ("🟡 Elevated"   if bp_dia>80   else "🟢 Normal")
         ldl_s = "🔴 High"       if ldl>160  else ("🟡 Borderline" if ldl>130  else "🟢 Normal")
         hdl_s = "🔴 Low (risk)" if hdl<40   else ("🟡 Moderate"   if hdl<60   else "🟢 Good")
         c_s   = "🔴 High"       if chol>240 else ("🟡 Borderline" if chol>200 else "🟢 Optimal")
-        dia_line = f"<p><b>Diastolic BP:</b> {bp_dia} mmHg</p>" if know_dia == "Yes" and bp_dia else ""
         st.markdown(f"""
         <div class="detail-box">
           <p><b>Systolic BP:</b> {bp_sys} mmHg &nbsp;{bp_s}</p>
-          {dia_line}
+          <p><b>Diastolic BP:</b> {bp_dia} mmHg &nbsp;{bp_d_status}</p>
           <p><b>LDL:</b> {ldl} mg/dL &nbsp;{ldl_s}</p>
           <p><b>HDL:</b> {hdl} mg/dL &nbsp;{hdl_s}</p>
-          <p><b>Cholesterol:</b> {chol} mg/dL &nbsp;{c_s}</p>
+          <p><b>Total Cholesterol:</b> {chol} mg/dL &nbsp;{c_s}</p>
         </div>""", unsafe_allow_html=True)
 
     with tab_l:
@@ -900,7 +905,7 @@ def main():
 
     recs = []
     if glucose > 100:
-        recs.append(("🩸","Glucose",
+        recs.append(("🩸","Fasting Glucose",
             f"{int(glucose)} mg/dL — Walk 20 min after meals. Low-glycaemic diet (whole grains, legumes)."))
     if bmi > 30:
         recs.append(("⚖️","Weight",
@@ -951,10 +956,11 @@ def main():
     inputs = {
         "Height (cm)":       height_cm,   "Weight (kg)":       weight_kg,
         "BMI":                f"{bmi:.1f}",
-        "Glucose (mg/dL)":   glucose,     "Systolic BP (mmHg)": bp_sys,
-        "Diastolic BP (mmHg)": bp_dia if know_dia == "Yes" else "Not provided",
-        "LDL (mg/dL)":       ldl,         "HDL (mg/dL)":       hdl,
-        "Cholesterol (mg/dL)": chol,      "Insulin (μIU/mL)":  insulin,
+        "Fasting Glucose (mg/dL)": glucose,
+        "Systolic BP (mmHg)": bp_sys,    "Diastolic BP (mmHg)": bp_dia,
+        "LDL (mg/dL)":       ldl,        "HDL (mg/dL)":       hdl,
+        "Total Cholesterol (mg/dL)": chol,
+        "Fasting Insulin (μIU/mL)":  insulin,
         "Steps/day":          int(steps), "Sleep (hrs)":       sleep,
         "Stress (0-10)":      stress,     "Activity (0-10)":   act,
         "Smoking":            smoke,      "Hypertension":      htn,
@@ -992,10 +998,9 @@ def main():
         "inputs": {
             "height_cm": height_cm, "weight_kg": weight_kg, "bmi": round(bmi,1),
             "age": age, "sex": sex,
-            "glucose": glucose, "systolic_bp": bp_sys,
-            "diastolic_bp": bp_dia if know_dia == "Yes" else None,
-            "ldl": ldl, "hdl": hdl, "cholesterol": chol,
-            "insulin": insulin, "steps": steps,
+            "fasting_glucose": glucose, "systolic_bp": bp_sys, "diastolic_bp": bp_dia,
+            "ldl": ldl, "hdl": hdl, "total_cholesterol": chol,
+            "fasting_insulin": insulin, "steps": steps,
             "sleep": sleep, "stress": stress,
             "activity": act, "smoking": smoke,
             "hypertension": htn, "family_history": fam,
